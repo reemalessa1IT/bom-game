@@ -433,7 +433,14 @@ if (firebaseConfig.databaseURL) try {
     name: "Firebase 🌐 (أجهزة مختلفة)",
     now: () => Date.now() + offset,
     async get(c) { return (await fb.get(R(c))).val(); },
-    async update(c, fn) { await fb.get(R(c)); const r = await fb.runTransaction(R(c), fn); return r.committed ? r.snapshot.val() : null; },
+    // ملاحظة مهمة: Firebase أحيانًا يشغّل التعديل أول مرة على قيمة فاضية (null) إذا البيانات مو محمّلة عنده،
+    // فنفتح متابعة للروم أول ونستنى أول قيمة توصل، وبعدها نسوي الـ transaction على البيانات الحقيقية
+    async update(c, fn) {
+      const ref = R(c);
+      const unsub = await new Promise(res => { let u = null, done = false; u = fb.onValue(ref, () => { if (!done) { done = true; setTimeout(() => res(u)); } }); });
+      try { const r = await fb.runTransaction(ref, fn); return r.committed ? r.snapshot.val() : null; }
+      finally { try { unsub(); } catch {} }
+    },
     set(c, path, v) { fb.set(R(c, path), v); },
     watch(c, cb) { return fb.onValue(R(c), s => cb(s.val())); },
     onLeave(c, id) { fb.onDisconnect(R(c, "players/" + id)).remove(); }
