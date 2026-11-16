@@ -225,9 +225,25 @@ button,input,select{touch-action:manipulation}
   .code{font-size:26px}.pl .e{font-size:22px}.pl{padding:4px 8px;min-width:60px}
 }
 @media (max-width:760px){
-  .charinfo{top:auto!important;bottom:calc(58% + 10px)!important}
-  .side{max-height:58%}
+  .charinfo{top:auto!important;bottom:calc(60% + 8px)!important}
+  .side{height:60%;max-height:60%;padding:12px 14px calc(10px + env(safe-area-inset-bottom))}
+  .stitle{font-size:16px;margin-bottom:2px}
+  .side label{margin:6px 0 4px;font-size:12px}
+  .side input{padding:9px;font-size:15px}
+  .skins{grid-template-columns:repeat(8,1fr);gap:4px}.skin{height:clamp(34px,10vw,44px);font-size:clamp(18px,5.5vw,24px);border-radius:10px}
+  .tabs{margin-top:8px;padding:3px}.tab{padding:8px;font-size:14px}
+  .chip{padding:7px 0}.btn{margin-top:8px;padding:11px}
+  .bigcode{font-size:24px;padding:8px}
+  .link{padding-top:6px;margin-top:4px}
+  .net{margin-top:4px;padding:4px 8px;font-size:11px}
+  .cname{font-size:16px;padding:6px 12px;min-width:150px}.csize{font-size:11px}.arrow{width:44px;height:44px}
+  #mode{display:none}
 }
+@media (max-width:760px) and (max-height:720px){ .stitle{display:none} .side{height:62%;max-height:62%} .charinfo{bottom:calc(62% + 6px)!important} .link{position:absolute;top:max(14px,env(safe-area-inset-top));right:12px;margin:0;padding:6px 10px;background:#0008;border-radius:10px;z-index:7} }
+.net{font-size:12px;border-radius:10px;padding:6px 10px;margin-top:6px;text-align:center}
+.net.ok{background:#0d2a17;color:#7dffb0;border:1px solid #2aff7a44}
+.net.warn{background:#2a2410;color:#ffe08a;border:1px solid #ffcc3344}
+.net.bad{background:#2a0d12;color:#ffb3b3;border:1px solid #ff4d5e55}
 /* تنبيه قلب الجهاز */
 .rotate{display:none;position:absolute;inset:0;z-index:40;background:#07080df2;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
 .rotate .ph{font-size:64px;animation:rot 1.8s ease-in-out infinite}
@@ -283,7 +299,8 @@ button,input,select{touch-action:manipulation}
           <input id="codeIn" class="bigcode" inputmode="numeric" maxlength="4" placeholder="• • • •">
           <button class="btn" id="bJoin">دخول ⬅</button>
         </div>
-        <div class="mut" id="homeMsg" style="margin-top:8px;min-height:18px"></div>
+        <div class="mut" id="homeMsg" style="margin-top:8px;min-height:18px;color:#ffb3b3"></div>
+        <div id="netStatus" class="net"></div>
         <button class="link" id="bHow">📖 طريقة اللعب</button>
       </div>
       <div class="charinfo">
@@ -403,13 +420,14 @@ const firebaseConfig = {
 };
 
 /* ===================== 2) طبقة المزامنة ===================== */
-let api = null;
+let api = null, fbError = "", fbConnected = null;
 if (firebaseConfig.databaseURL) try {
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
   const fb = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
   const db = fb.getDatabase(initializeApp(firebaseConfig));
   let offset = 0;
   fb.onValue(fb.ref(db, ".info/serverTimeOffset"), s => offset = s.val() || 0);
+  fb.onValue(fb.ref(db, ".info/connected"), s => { fbConnected = !!s.val(); netStatus(); });
   const R = (c, p = "") => fb.ref(db, `rooms/${c}${p ? "/" + p : ""}`);
   api = {
     name: "Firebase 🌐 (أجهزة مختلفة)",
@@ -420,7 +438,7 @@ if (firebaseConfig.databaseURL) try {
     watch(c, cb) { return fb.onValue(R(c), s => cb(s.val())); },
     onLeave(c, id) { fb.onDisconnect(R(c, "players/" + id)).remove(); }
   };
-} catch (e) { console.warn("Firebase ما اشتغل، نرجع للوضع التجريبي", e); api = null; }
+} catch (e) { console.warn("Firebase ما اشتغل، نرجع للوضع التجريبي", e); fbError = String(e?.message || e); api = null; }
 if (!api) {
   const mem = {}; let ch = null;
   try { ch = new BroadcastChannel("bomb-3d-v2"); } catch {}
@@ -448,8 +466,26 @@ if (!api) {
     onLeave() {}
   };
 }
-document.getElementById("mode").textContent = "وضع الاتصال: " + api.name;
+// حالة الاتصال تنعرض بوضوح (عشان نعرف إذا الأجهزة فعلًا متصلة ببعض)
+function netStatus() {
+  const el = document.getElementById("mode"), ns = document.getElementById("netStatus");
+  let txt, cls;
+  if (api.name.startsWith("Firebase")) {
+    if (fbConnected === false) { txt = "🟠 Firebase: جاري الاتصال… (تأكدي من النت)"; cls = "warn"; }
+    else if (fbConnected) { txt = "🟢 متصلة بـ Firebase · تقدرون تلعبون من أجهزة مختلفة"; cls = "ok"; }
+    else { txt = "🟡 Firebase: جاري الاتصال…"; cls = "warn"; }
+  } else if (firebaseConfig.databaseURL) { txt = "🔴 ما قدرت أتصل بـ Firebase، شغالة تجريبي (نفس المتصفح بس)"; cls = "bad"; }
+  else { txt = "🧪 وضع تجريبي: يشتغل بين تبويبات نفس المتصفح بس"; cls = "bad"; }
+  el.textContent = "وضع الاتصال: " + txt;
+  if (ns) { ns.textContent = txt; ns.className = "net " + cls; }
+}
+netStatus();
 
+function explain(e) {
+  const m = String(e?.message || e);
+  if (/permission|denied/i.test(m)) return "Firebase رفض الطلب، عدّلي القواعد (Rules) وخليها تسمح بـ rooms";
+  return m.slice(0, 120);
+}
 /* ===================== 3) خريطة المبنى ===================== */
 // كل شي مرسوم بإحداثيات 2D (x,y) ويتحول لـ 3D بضربه في S (32 وحدة = 1 متر)
 const W = 1440, H = 1120, S = 1 / 32, WALL_H = 3.2;
@@ -1009,11 +1045,12 @@ $("bCreate").onclick = async () => {
   // نجرب أرقام عشوائية لين نلقى رقم مو مستخدم (أو روم قديم فاضي)
   for (let i = 0; i < 15; i++) {
     const c = String(Math.floor(1000 + Math.random() * 9000));
-    const ok = await api.update(c, r => {
+    let ok;
+    try { ok = await api.update(c, r => {
       if (r && r.players && Object.keys(r.players).length) return;      // الرقم محجوز
       return { host: me.id, max: +$("max").value, status: "lobby",
         players: { [me.id]: { name: myName(), skin: me.skin, x: SPAWN[0], y: SPAWN[1], t: api.now() } } };
-    });
+    }); } catch (e) { homeMsg("❌ ما قدرت أنشئ الروم: " + explain(e)); return; }
     if (ok) { enter(c); return; }
   }
   homeMsg("ما قدرنا ننشئ روم، جربي مرة ثانية");
@@ -1021,9 +1058,12 @@ $("bCreate").onclick = async () => {
 $("bJoin").onclick = async () => {
   const c = $("codeIn").value.trim();
   if (!/^\d{4}$/.test(c)) return homeMsg("اكتبي كود من 4 أرقام");
-  if (!(await api.get(c))) return homeMsg("ما فيه روم بهالكود ❌");
+  let found;
+  try { found = await api.get(c); } catch (e) { return homeMsg("❌ خطأ بالاتصال: " + explain(e)); }
+  if (!found) return homeMsg(api.name.startsWith("Firebase") ? "ما فيه روم بهالكود ❌ تأكدي من الرقم" : "ما فيه روم بهالكود ❌ (الوضع التجريبي ما يشوف أجهزة ثانية)");
   let reason = "";
-  const res = await api.update(c, r => {
+  let res;
+  try { res = await api.update(c, r => {
     if (!r) { reason = "الروم غير موجود"; return; }
     if (r.players?.[me.id]) return r;
     const n = Object.keys(r.players || {}).length;
@@ -1031,7 +1071,7 @@ $("bJoin").onclick = async () => {
     if (r.status !== "lobby") { reason = "اللعبة بدأت في هذا الروم ⏳"; return; }
     (r.players ||= {})[me.id] = { name: myName(), skin: me.skin, x: SPAWN[0], y: SPAWN[1], t: api.now() };
     return r;
-  });
+  }); } catch (e) { return homeMsg("❌ ما قدرت أدخل: " + explain(e)); }
   res ? enter(c) : homeMsg(reason || "ما قدرتي تدخلين");
 };
 function enter(c) { code = c; api.onLeave(c, me.id); unwatch && unwatch(); unwatch = api.watch(c, r => { room = r; onRoom(); }); }
