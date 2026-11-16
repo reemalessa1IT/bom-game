@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#07080d">
 <title>فكّ القنبلة 💣</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
@@ -161,6 +162,77 @@ button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:12px 1
 .stats{display:flex;gap:8px;justify-content:center;margin:12px 0;flex-wrap:wrap}
 .stats div{background:#0f1427;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}
 .ldiff{background:#2a1408;border:1px solid #ff9f1a55;border-radius:12px;padding:8px 10px;margin:10px 0 0;font-size:13px;line-height:1.7}
+
+/* ===== ملء الشاشة والتكيّف مع كل الأجهزة ===== */
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;touch-action:none}
+body{padding:0;display:block;background:#07080d}
+button,input,select{touch-action:manipulation}
+.wrap{max-width:none;width:100vw;height:100vh;height:100dvh}
+#sGame{width:100%;height:100%}
+.menu,.stage{width:100%;height:100vh;height:100dvh;border-radius:0;border:none;box-shadow:none}
+.stage:fullscreen{height:100vh}
+#mode{position:absolute;bottom:max(4px,env(safe-area-inset-bottom));left:0;right:0;z-index:7;font-size:11px;opacity:.55;pointer-events:none;margin:0}
+.sound{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left))}
+.mfs{position:absolute;z-index:6;top:max(12px,env(safe-area-inset-top));left:calc(max(12px,env(safe-area-inset-left)) + 52px);background:#0008;border:1px solid #ffffff33;color:#fff;font-size:18px;padding:6px 10px}
+.top{top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));left:calc(max(10px,env(safe-area-inset-left)) + 54px)}
+.fs{top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left))}
+.goals{left:max(10px,env(safe-area-inset-left))}
+#mini{left:max(10px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom))}
+.side{padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom));padding-right:max(22px,env(safe-area-inset-right))}
+.panel{max-height:94%;overflow:auto}
+.brief{max-height:78%;overflow:auto}
+.typed{min-height:0}
+.lbox{max-height:calc(100% - 30px);overflow:auto}
+#sEnd .card{max-height:94%;overflow:auto}
+/* أجهزة اللمس (جوال وآيباد) */
+@media (pointer:coarse){
+  #mini{top:calc(max(10px,env(safe-area-inset-top)) + 54px);bottom:auto;width:130px;height:101px}
+  .note{top:calc(max(10px,env(safe-area-inset-top)) + 58px);bottom:auto;right:max(10px,env(safe-area-inset-right));max-width:240px;font-size:13px}
+  .dpad{left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));grid-template-columns:repeat(3,clamp(42px,7vmin,60px));grid-template-rows:repeat(3,clamp(42px,7vmin,60px))}
+  .act{right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));width:clamp(72px,13vmin,100px);height:clamp(72px,13vmin,100px)}
+  .looktip{right:max(18px,env(safe-area-inset-right));bottom:calc(max(18px,env(safe-area-inset-bottom)) + clamp(80px,14vmin,110px))}
+}
+/* شاشات صغيرة أو قصيرة (جوال بالعرض) */
+@media (max-height:520px),(max-width:700px){
+  .box{padding:4px 8px;border-radius:10px}
+  .timer{font-size:20px;min-width:62px}
+  .slot{width:32px;height:32px;font-size:16px}
+  .msg{font-size:12px;max-width:230px}
+  .whoami,.looktip{display:none}
+  .hearts{font-size:14px}
+  .prompt{font-size:13px;top:auto;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 4px)}
+  .kgrid button{padding:9px 0;font-size:18px}.kdisp{font-size:28px;margin:6px 0;padding:4px}
+  .wire{margin:8px 0}
+  .banner{font-size:clamp(24px,7vmin,48px)}
+}
+@media (max-height:520px){
+  .alert{margin-bottom:6px;font-size:12px;padding:4px 12px}
+  .title{font-size:min(11vw,17vh)!important}
+  .tag{font-size:14px}
+  .digits{margin:8px 0 10px;font-size:7vh;padding:2px 14px}
+  .go{font-size:17px;padding:10px 28px}
+  .hint{display:none}
+  .typed{font-size:15px;line-height:1.7}
+  .brief{padding:10px 14px}
+  .side{width:300px;padding:12px 16px}
+  .stitle{font-size:17px}
+  .side label{margin:6px 0 4px}
+  .side input{padding:8px}
+  .skins{grid-template-columns:repeat(8,1fr);gap:4px}.skin{height:38px;font-size:20px}
+  .tabs{margin-top:8px}.tab{padding:7px}.chip{padding:6px 0}.btn{margin-top:8px;padding:9px}
+  .cname{font-size:16px;padding:6px 14px;min-width:150px}.arrow{width:42px;height:42px}
+  .charinfo{bottom:10px;right:300px}
+  .code{font-size:26px}.pl .e{font-size:22px}.pl{padding:4px 8px;min-width:60px}
+}
+@media (max-width:760px){
+  .charinfo{top:auto!important;bottom:calc(58% + 10px)!important}
+  .side{max-height:58%}
+}
+/* تنبيه قلب الجهاز */
+.rotate{display:none;position:absolute;inset:0;z-index:40;background:#07080df2;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+.rotate .ph{font-size:64px;animation:rot 1.8s ease-in-out infinite}
+@keyframes rot{0%,20%{transform:rotate(0)}50%,70%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@media (pointer:coarse) and (orientation:portrait){ .stage:not(.portraitok) .rotate{display:flex} }
 </style>
 </head>
 <body>
@@ -169,6 +241,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:12px 1
     <canvas id="mgl"></canvas>
     <div class="vignette"></div>
     <button class="sound" id="bSound" title="الصوت">🔊</button>
+    <button class="mfs" id="bMfs" title="ملء الشاشة">⛶</button>
 
     <!-- شاشة العنوان -->
     <div id="scTitle" class="sc">
@@ -267,6 +340,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:12px 1
       <button class="fs" id="bFs" title="ملء الشاشة">⛶</button>
       <canvas id="mini" width="380" height="296"></canvas>
       <div class="prompt hide" id="prompt"></div>
+      <div class="rotate" id="rotate"><div class="ph">📱</div><b style="font-size:20px">قلّبي جهازك بالعرض 🔄</b><div class="mut">عشان تشوفين اللعبة كاملة وأكبر</div><button class="btn2" id="bPortrait" style="width:auto">كمّلي بالطول</button></div>
       <div id="banner" class="banner"></div>
       <div class="lb top"></div><div class="lb bot"></div>
       <div id="flash" class="flash"></div>
@@ -448,7 +522,8 @@ const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 /* ===================== 4) المشهد ثلاثي الأبعاد ===================== */
 const canvas = $("gl");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+const TOUCH = matchMedia("(pointer:coarse)").matches;
+renderer.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, devicePixelRatio));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#05060a");
 scene.fog = new THREE.Fog("#05060a", 8, 30);
@@ -740,6 +815,9 @@ function resize() {
   if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener("resize", resize);
+addEventListener("orientationchange", () => setTimeout(() => { resize(); typeof mResize === "function" && mResize(); }, 300));
+window.visualViewport?.addEventListener("resize", () => resize());
+try { new ResizeObserver(() => resize()).observe($("stage")); } catch {}
 
 /* ===================== واجهة البداية (3D + صوت + مقدمة) ===================== */
 const CHAR_INFO = {
@@ -766,7 +844,7 @@ $("bSound").onclick = () => { muted = !muted; $("bSound").textContent = muted ? 
 // --- مشهد القائمة ---
 const mCanvas = $("mgl");
 const mR = new THREE.WebGLRenderer({ canvas: mCanvas, antialias: true });
-mR.setPixelRatio(Math.min(2, devicePixelRatio));
+mR.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, devicePixelRatio));
 const mScene = new THREE.Scene(); mScene.background = new THREE.Color("#07080d"); mScene.fog = new THREE.Fog("#07080d", 6, 18);
 const mCam = new THREE.PerspectiveCamera(45, 1, .05, 60);
 mScene.add(new THREE.AmbientLight("#ffffff", .25));
@@ -838,6 +916,10 @@ function setMenuMode(m) {
 }
 function mResize() { const w = mCanvas.clientWidth, h = mCanvas.clientHeight; if (!w || !h) return; mR.setSize(w, h, false); mCam.aspect = w / h; mCam.updateProjectionMatrix(); }
 addEventListener("resize", mResize);
+try { new ResizeObserver(() => mResize()).observe($("menu")); } catch {}
+$("menu").append($("mode"));
+$("bMfs").onclick = () => toggleFull();
+$("bPortrait").onclick = () => { $("stage").classList.add("portraitok"); setTimeout(resize, 100); };
 let mPrev = performance.now(), lastTick = 0;
 function mLoop(now) {
   requestAnimationFrame(mLoop);
@@ -847,8 +929,10 @@ function mLoop(now) {
   for (const k of ["dist", "y", "look"]) camCur[k] += (camGoal[k] - camCur[k]) * Math.min(1, dt * 3);
   mAng += dt * (mMode === "title" ? .25 : .12);
   const side = innerWidth > 760 && (mMode === "setup" || mMode === "title") ? (mMode === "title" ? .8 : .9) : 0;  // نزيح الكاميرا عشان اللوحة الجانبية
-  mCam.position.set(Math.sin(mAng * .6) * camCur.dist * .35 + side * camCur.dist * .3, camCur.y, camCur.dist);
-  mCam.lookAt(side * camCur.dist * .3, camCur.look, 0);
+  const af = Math.max(1, .95 / Math.max(.3, mCam.aspect));   // بالطول نبعد الكاميرا
+  mCam.position.set(Math.sin(mAng * .6) * camCur.dist * af * .35 + side * camCur.dist * .3, camCur.y, camCur.dist * af);
+  const portraitSetup = innerWidth <= 760 && mMode === "setup";   // بالجوال الطولي: الشخصية فوق اللوحة
+  mCam.lookAt(side * camCur.dist * .3, camCur.look - (portraitSetup ? camCur.dist * af * .2 : 0), 0);
   if (tBomb.visible) {
     stepSparks(dt); tb.rotation.y += dt * .3;
     const on = Math.sin(now / 160) > 0; tLed.visible = on; rim.intensity = on ? 2.2 : .8;
@@ -868,7 +952,7 @@ const MENU_SC = ["scTitle", "scIntro", "scSetup", "sLobby"];
 let menuScreen = "scTitle";
 function menuShow(id) { menuScreen = id; MENU_SC.forEach(x => $(x).classList.toggle("hide", x !== id));
   setMenuMode({ scTitle: "title", scIntro: "intro", scSetup: "setup", sLobby: "lobby" }[id]); }
-$("bGo").onclick = () => { sfx(440, .12, "square", .06, 400); alarm(); menuShow("scIntro"); typeIntro(); };
+$("bGo").onclick = () => { if (TOUCH) toggleFull(true); sfx(440, .12, "square", .06, 400); alarm(); menuShow("scIntro"); typeIntro(); };
 // المقدمة تنكتب حرف حرف
 const STORY = [
   ["🚨 بلاغ عاجل · الساعة 11:52 مساءً", "red"],
@@ -986,7 +1070,7 @@ function onRoom() {
   } else if (r.status === "playing") {
     show("sGame");
     if (r.round !== lastRound) {
-      resetCine(); alarmOn = true; setAlarm(false); lastSec = -1;
+      resetCine(); alarmOn = true; setAlarm(false); lastSec = -1; if (TOUCH) lockLandscape();
       lastRound = r.round; lastStrikes = 0; passedLaser = false; picking = {}; closePanel(); closeKp();
       const i = Object.keys(r.players).sort().indexOf(me.id);
       me.x = SPAWN[0] + (i % 3) * 45 - 45; me.y = SPAWN[1] + Math.floor(i / 3) * 45; me.yaw = Math.PI / 2; me.pitch = 0;
@@ -1101,7 +1185,16 @@ document.querySelectorAll(".dpad button").forEach(b => {
   b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointerleave", off); b.addEventListener("pointercancel", off);
 });
 $("bAct").addEventListener("pointerdown", e => { e.stopPropagation(); interact(); });
-$("bFs").onclick = () => { try { document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen?.().catch(() => {}); } catch {} setTimeout(resize, 200); };
+function toggleFull(force) {
+  try {
+    const el = document.documentElement, on = document.fullscreenElement || document.webkitFullscreenElement;
+    if (on && !force) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    else if (!on) { const p = (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el, { navigationUI: "hide" }); p?.catch?.(() => {}); }
+  } catch {}
+  setTimeout(() => { resize(); mResize(); }, 250);
+}
+function lockLandscape() { try { screen.orientation?.lock?.("landscape").catch(() => {}); } catch {} }
+$("bFs").onclick = () => toggleFull();
 document.addEventListener("fullscreenchange", () => setTimeout(resize, 100));
 
 let lastSent = 0, sentX = 0, sentY = 0, sentYaw = 0, sentPitch = 0;
