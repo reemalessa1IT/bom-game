@@ -654,9 +654,14 @@ for (const [x, y, w, d, h, c, kind] of PROPS) {
   }
   if (kind === "pillar") { const p = new THREE.Mesh(new THREE.CylinderGeometry(w * S / 2, w * S / 2, h, 18), mat(c)); p.position.set(cx, h / 2, cz); scene.add(p); continue; }
   const m = new THREE.Mesh(new THREE.BoxGeometry(w * S, h, d * S), mat(c, { r: kind === "bench" || kind === "counter" ? .4 : .85 })); m.position.set(cx, h / 2, cz); scene.add(m);
-  if (kind === "shelf") for (let i = 1; i < 5; i++) for (let j = 0; j < 7; j++) {
-    const bk = new THREE.Mesh(new THREE.BoxGeometry(w * S + .04, .3, .12), mat(["#a33","#36a","#3a6","#a83","#839"][(i * 7 + j) % 5]));
-    bk.position.set(cx, i * .45, y * S + .15 + j * (d * S - .3) / 6); scene.add(bk);
+  if (kind === "shelf") { // الكتب: رسمة وحدة لكل لون (أخف بكثير على الجوال)
+    const cols = ["#a33","#36a","#3a6","#a83","#839"], geo = new THREE.BoxGeometry(w * S + .04, .3, .12), m4 = new THREE.Matrix4();
+    cols.forEach((col, ci) => {
+      const list = []; for (let i = 1; i < 5; i++) for (let j = 0; j < 7; j++) if ((i * 7 + j) % 5 === ci) list.push([i, j]);
+      const im = new THREE.InstancedMesh(geo, mat(col), list.length);
+      list.forEach(([i, j], n) => { m4.makeTranslation(cx, i * .45, y * S + .15 + j * (d * S - .3) / 6); im.setMatrixAt(n, m4); });
+      scene.add(im);
+    });
   }
   if (kind === "bench") for (let j = 0; j < 3; j++) { const fl = new THREE.Mesh(new THREE.CylinderGeometry(.06, .08, .22, 10), mat(["#4fc3ff","#ff6bd1","#9bff6b"][j], { e: ["#0a4a7a","#7a0a5a","#2a7a0a"][j], ei: .6 })); fl.position.set(cx - .8 + j * .8, h + .11, cz); scene.add(fl); }
   if (kind === "sofa") { const back = new THREE.Mesh(new THREE.BoxGeometry(w * S, .5, .2), mat(c)); back.position.set(cx, h + .25, y * S + .1); scene.add(back); }
@@ -1311,15 +1316,18 @@ function lockLandscape() { try { screen.orientation?.lock?.("landscape").catch((
 $("bFs").onclick = () => toggleFull();
 document.addEventListener("fullscreenchange", () => setTimeout(resize, 100));
 
-let lastSent = 0, sentX = 0, sentY = 0, sentYaw = 0, sentPitch = 0;
+// نرسل المكان + السرعة + الوقت، فالأجهزة الثانية "تتوقع" وين بتكونين بدل ما تنتظر التحديث الجاي
+let lastSent = 0, sentX = 0, sentY = 0, sentYaw = 0, sentPitch = 0, sentMoving = false;
+me.vx = 0; me.vy = 0;
 function pushPos(force) {
   if (!code || !room?.players?.[me.id]) return;
-  const now = performance.now();
-  const changed = Math.abs(me.x - sentX) >= 1 || Math.abs(me.y - sentY) >= 1 || Math.abs(me.yaw - sentYaw) > .03 || Math.abs(me.pitch - sentPitch) > .03;
-  if (!force && (now - lastSent < 90 || !changed)) return;
-  lastSent = now; sentX = me.x; sentY = me.y; sentYaw = me.yaw; sentPitch = me.pitch;
-  const p = room.players[me.id];
-  api.setPos(code, me.id, { x: Math.round(me.x), y: Math.round(me.y), yaw: Math.round(me.yaw * 100) / 100, pitch: Math.round(me.pitch * 100) / 100 });
+  const now = performance.now(), moving = Math.hypot(me.vx, me.vy) > 5;
+  const changed = Math.abs(me.x - sentX) >= 1 || Math.abs(me.y - sentY) >= 1 || Math.abs(me.yaw - sentYaw) > .02 || Math.abs(me.pitch - sentPitch) > .03;
+  const stopped = sentMoving && !moving;                 // وقفت: نرسل على طول عشان ما "تتزحلق"
+  if (!force && !stopped && (now - lastSent < 66 || !changed)) return;
+  lastSent = now; sentX = me.x; sentY = me.y; sentYaw = me.yaw; sentPitch = me.pitch; sentMoving = moving;
+  api.setPos(code, me.id, { x: Math.round(me.x), y: Math.round(me.y), yaw: Math.round(me.yaw * 100) / 100, pitch: Math.round(me.pitch * 100) / 100,
+    vx: moving ? Math.round(me.vx) : 0, vy: moving ? Math.round(me.vy) : 0, t: Math.round(api.now()) });
 }
 
 /* ===================== 8) الألغاز والتفاعل ===================== */
@@ -1598,10 +1606,12 @@ function loop(now) {
         const sy = Math.sin(me.yaw), cy = Math.cos(me.yaw);
         let dx = -sy * f + cy * sd, dy = -cy * f - sy * sd; const len = Math.hypot(dx, dy); dx /= len; dy /= len;
         const nx = me.x + dx * SPEED * dt, ny = me.y + dy * SPEED * dt;
+        const px0 = me.x, py0 = me.y;
         if (!blocked(nx, me.y)) me.x = nx;
         if (!blocked(me.x, ny)) me.y = ny;
+        me.vx = (me.x - px0) / Math.max(dt, .001); me.vy = (me.y - py0) / Math.max(dt, .001);
         tryPickups();
-      }
+      } else { me.vx = 0; me.vy = 0; }
       checkLaser();
       if (me.y > 700 && me.x > 968) passedLaser = true;
     }
@@ -1652,9 +1662,14 @@ function render3D(r, now) {
   for (const [id, p] of Object.entries(r.players || {})) {
     if (id === me.id) continue; ids.add(id);
     const a = avatar(id, p);
-    const ox = a.x, oy = a.y, k = 1 - Math.pow(.0005, dt3);
+    const ox = a.x, oy = a.y, k = 1 - Math.pow(.00002, dt3);   // تنعيم سريع
     const q = posMap[id] || p;
-    a.x += (q.x - a.x) * k; a.y += (q.y - a.y) * k;
+    // توقّع: آخر مكان + السرعة × الوقت اللي مر (بحد أقصى ربع ثانية)
+    const lag = q.t ? Math.min(.25, Math.max(0, (api.now() - q.t) / 1000)) : 0;
+    let tx = q.x + (q.vx || 0) * lag, ty = q.y + (q.vy || 0) * lag;
+    if (blocked(tx, ty)) { tx = q.x; ty = q.y; }
+    if (Math.hypot(tx - a.x, ty - a.y) > 220) { a.x = tx; a.y = ty; }   // انتقال بعيد (ليزر/بداية جولة): نقفز على طول
+    a.x += (tx - a.x) * k; a.y += (ty - a.y) * k;
     let dyaw = (q.yaw || 0) - a.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
     a.yaw += dyaw * k; a.pitch += ((q.pitch || 0) - a.pitch) * k;
     a.g.position.set(a.x * S, 0, a.y * S); a.g.rotation.y = a.yaw;
