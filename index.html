@@ -427,8 +427,11 @@ if (firebaseConfig.databaseURL) try {
   const db = fb.getDatabase(initializeApp(firebaseConfig));
   let offset = 0;
   fb.onValue(fb.ref(db, ".info/serverTimeOffset"), s => offset = s.val() || 0);
-  fb.onValue(fb.ref(db, ".info/connected"), s => { fbConnected = !!s.val(); netStatus(); });
+  fb.onValue(fb.ref(db, ".info/connected"), s => { fbConnected = !!s.val(); netStatus(); if (fbConnected) onReconnect(); });
   const R = (c, p = "") => fb.ref(db, `rooms/${c}${p ? "/" + p : ""}`);
+  // المواقع (الحركة) في مسار منفصل عن بيانات اللعبة، عشان الكتابة السريعة (10 مرات بالثانية)
+  // ما تتعارض مع الـ transactions (فتح بوابة، أخذ أداة، قص سلك...) وتعلّق اللعبة
+  const P = (c, id = "") => fb.ref(db, `pos/${c}${id ? "/" + id : ""}`);
   api = {
     name: "Firebase 🌐 (أجهزة مختلفة)",
     now: () => Date.now() + offset,
@@ -441,9 +444,11 @@ if (firebaseConfig.databaseURL) try {
       try { const r = await fb.runTransaction(ref, fn); return r.committed ? r.snapshot.val() : null; }
       finally { try { unsub(); } catch {} }
     },
-    set(c, path, v) { fb.set(R(c, path), v); },
+    set(c, path, v) { fb.set(R(c, path), v).catch(netError); },
     watch(c, cb) { return fb.onValue(R(c), s => cb(s.val())); },
-    onLeave(c, id) { fb.onDisconnect(R(c, "players/" + id)).remove(); }
+    onLeave(c, id) { fb.onDisconnect(R(c, "players/" + id)).remove(); fb.onDisconnect(P(c, id)).remove(); },
+    setPos(c, id, v) { fb.set(P(c, id), v).catch(netError); },
+    watchPos(c, cb) { return fb.onValue(P(c), s => cb(s.val() || {})); }
   };
 } catch (e) { console.warn("Firebase ما اشتغل، نرجع للوضع التجريبي", e); fbError = String(e?.message || e); api = null; }
 if (!api) {
@@ -457,7 +462,7 @@ if (!api) {
     ch.onmessage = e => {
       const d = e.data || {};
       if (d.sync) { Object.entries(mem).forEach(([k, v]) => send({ k, v })); return; }
-      if (d.k && "path" in d) { if (mem[d.k]) { setPath(mem[d.k], d.path, d.v); fire(d.k); } return; }
+      if (d.k && "path" in d) { setPath(mem[d.k] ||= {}, d.path, d.v); fire(d.k); return; }
       if (d.k) { if (d.v === null) delete mem[d.k]; else mem[d.k] = d.v; fire(d.k); }
     };
     send({ sync: true });
@@ -470,7 +475,9 @@ if (!api) {
       if (v === null) delete mem[k]; else mem[k] = v; send({ k, v }); fire(k); return v; },
     set(c, path, v) { const k = "room_" + c; if (!mem[k]) return; setPath(mem[k], path, v); send({ k, path, v }); fire(k); },
     watch(c, cb) { const k = "room_" + c; (subs[k] ||= []).push(cb); cb(read(k)); return () => subs[k] = subs[k].filter(f => f !== cb); },
-    onLeave() {}
+    onLeave() {},
+    setPos(c, id, v) { const k = "pos_" + c; setPath(mem[k] ||= {}, id, v); send({ k, path: id, v }); fire(k); },
+    watchPos(c, cb) { const k = "pos_" + c, f = v => cb(v || {}); (subs[k] ||= []).push(f); f(read(k)); return () => subs[k] = subs[k].filter(x => x !== f); }
   };
 }
 // حالة الاتصال تنعرض بوضوح (عشان نعرف إذا الأجهزة فعلًا متصلة ببعض)
@@ -488,6 +495,12 @@ function netStatus() {
 }
 netStatus();
 
+let netErrShown = false;
+function netError(e) {
+  console.warn(e);
+  if (!netErrShown && /permission|denied/i.test(String(e?.message || e))) { netErrShown = true;
+    try { banner("⚠️ Firebase رفض الكتابة: حدّثي القواعد (Rules)"); } catch {} }
+}
 function explain(e) {
   const m = String(e?.message || e);
   if (/permission|denied/i.test(m)) return "Firebase رفض الطلب، عدّلي القواعد (Rules) وخليها تسمح بـ rooms";
@@ -544,7 +557,12 @@ const KEYS = { k1: [969, 940, Math.PI / 2], k2: [1423, 940, -Math.PI / 2] };
 const TOOL_SPOTS = { light: [[1100,150],[1320,150],[1210,330]], screw: [[80,1070],[400,1070]], cut: [[560,1070],[900,1060],[720,860]], note: [[840,580],[620,580]] };
 
 const $ = id => document.getElementById(id);
-const me = { id: Math.random().toString(36).slice(2, 9), skin: SKINS[0], x: SPAWN[0], y: SPAWN[1], yaw: -Math.PI / 2, pitch: 0 };
+let myId = null;
+// رقم اللاعبة يتحفظ بالجهاز، فلو سكّرت الصفحة ورجعت بنفس الكود ترجع لنفس مكانها بالفريق
+// (بالوضع التجريبي نحفظه لكل تبويب لحاله عشان التبويبات تكون لاعبين مختلفين)
+try { const st = api.name.startsWith("Firebase") ? localStorage : sessionStorage;
+  myId = st.getItem("bomb_id"); if (!myId) { myId = Math.random().toString(36).slice(2, 9); st.setItem("bomb_id", myId); } } catch {}
+const me = { id: myId || Math.random().toString(36).slice(2, 9), skin: SKINS[0], x: SPAWN[0], y: SPAWN[1], yaw: -Math.PI / 2, pitch: 0 };
 let code = null, room = null, unwatch = null, panelOpen = false, kpOpen = false, picking = {};
 const keys = {};
 
@@ -564,9 +582,9 @@ const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /* ===================== 4) المشهد ثلاثي الأبعاد ===================== */
 const canvas = $("gl");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 const TOUCH = matchMedia("(pointer:coarse)").matches;
-renderer.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, devicePixelRatio));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !TOUCH, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(TOUCH ? 1.25 : 2, devicePixelRatio));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#05060a");
 scene.fog = new THREE.Fog("#05060a", 8, 30);
@@ -576,7 +594,8 @@ scene.add(camera);
 scene.add(new THREE.AmbientLight("#ffffff", 0.07));
 scene.add(new THREE.HemisphereLight("#9fb4ff", "#201810", 0.08));
 
-const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .85, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
+// بأجهزة اللمس نستخدم خامات أخف عشان اللعبة ما تعلّق
+const mat = (c, o = {}) => TOUCH ? new THREE.MeshLambertMaterial({ color: c, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1, transparent: !!o.transparent }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .85, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
 const at = (x, y) => [x * S, y * S];
 
 function textSprite(text, size = 96, color = "#fff", cw = 256, chh = 256, stroke = false) {
@@ -664,8 +683,10 @@ for (const [k, [x, y]] of Object.entries(PLATES)) {
   const g = new THREE.Group(); g.position.set(x * S, 0, y * S); scene.add(g);
   const base = new THREE.Mesh(new THREE.CylinderGeometry(.8, .85, .08, 28), mat("#333", { m: .5 })); base.position.y = .04; g.add(base);
   const top = new THREE.Mesh(new THREE.CylinderGeometry(.62, .62, .06, 28), mat("#ffcc33", { e: "#ffcc33", ei: .25 })); top.position.y = .1; g.add(top);
-  const L = new THREE.PointLight("#ffcc33", 0, 3); L.position.y = .5; g.add(L);
-  plateObjs[k] = { g, top, L };
+  const L = { intensity: 0 };   // بدون ضوء إضافي (أخف على الجوال)
+  const lab = textSprite(k.startsWith("a") ? "🟡 قفي هنا" : "🔴 قفي هنا = يطفي الليزر", 46, "#fff", 512, 96, true);
+  lab.scale.set(k.startsWith("a") ? 1.4 : 2.2, k.startsWith("a") ? .27 : .42, 1); lab.position.y = 1.5; g.add(lab);
+  plateObjs[k] = { g, top, L, lab };
 }
 // الليزر
 const laserG = new THREE.Group(); scene.add(laserG);
@@ -679,9 +700,11 @@ const sweepG = new THREE.Group(); scene.add(sweepG);
 for (const h of [.3, .8, 1.3, 1.8]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, 225 * S, 6), laserMat); b.rotation.x = Math.PI / 2; b.position.set(0, h, (420 + 112) * S); sweepG.add(b); }
 const sweepCap = new THREE.Mesh(new THREE.BoxGeometry(.2, .2, .2), new THREE.MeshBasicMaterial({ color: "#ff2030" })); sweepCap.position.set(0, 2.9, (420 + 112) * S); sweepG.add(sweepCap);
 sweepG.visible = false;
-const laserLight = new THREE.PointLight("#ff2030", 1, 6); laserLight.position.set((LASER[0] + LASER[2] / 2) * S, 1.2, (LASER[1] + 20) * S); scene.add(laserLight);
+const laserLight = TOUCH ? new THREE.Object3D() : new THREE.PointLight("#ff2030", 1, 6); laserLight.position.set((LASER[0] + LASER[2] / 2) * S, 1.2, (LASER[1] + 20) * S); scene.add(laserLight);
 for (const ex of [LASER[0] + 6, LASER[0] + LASER[2] - 6]) { const e = new THREE.Mesh(new THREE.BoxGeometry(.18, 2, .5), mat("#222", { m: .6 })); e.position.set(ex * S, 1, (LASER[1] + 20) * S); scene.add(e); }
 // لوحة الكيبورد والمفاتيح
+const laserSign = wallPanel(1110, 409, 0, 2.2, .9, 1.9);
+laserSign.material.map = panelTex([["🔴 قاعة الليزر", 54], ["وحدة توقف على الدائرة الحمرا", 40], ["والليزر يطفي، والباقي يعبرون", 40]], "#2a0a0a", "#ffd0d0", 640, 260); laserSign.material.needsUpdate = true;
 const kpMesh = wallPanel(KEYPAD.x, KEYPAD.y, KEYPAD.face, .7, .9, 1.4);
 kpMesh.material.map = panelTex([["🔢", 120], ["أدخلي الكود", 54]], "#0b1a2f", "#6bff9a", 300, 380); kpMesh.material.needsUpdate = true;
 const keyObjs = {};
@@ -700,7 +723,7 @@ for (const [t, [e]] of Object.entries(TOOLS)) {
 
 /* ===================== شخصيات ثلاثية الأبعاد ===================== */
 // كل شخصية مبنية من أشكال بسيطة. الوجه يطالع لقدّام (-Z)، والحجم حقيقي تقريبًا بالمتر
-const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .6, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
+const M = (c, o = {}) => TOUCH ? new THREE.MeshLambertMaterial({ color: c, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .6, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
 const BLACK = M("#111"), WHITE = M("#fafafa");
 function part(geo, m, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, parent) {
   const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); parent && parent.add(o); return o;
@@ -833,7 +856,8 @@ function avatar(id, p) {
   const name = textSprite(p.name, 56, "#fff", 512, 96, true); name.scale.set(1.3, .25, 1); name.position.y = tagY; g.add(name);
   const held = textSprite("", 60); held.position.y = tagY - .25; g.add(held);
   scene.add(g);
-  a = avatars[id] = { g, model, skin: p.skin, name: p.name, x: p.x, y: p.y, yaw: p.yaw || 0, pitch: 0, phase: 0, held, heldTxt: "", tagY };
+  const q0 = posMap[id] || p;
+  a = avatars[id] = { g, model, skin: p.skin, name: p.name, x: q0.x, y: q0.y, yaw: q0.yaw || 0, pitch: 0, phase: 0, held, heldTxt: "", tagY };
   return a;
 }
 function setHeld(a, txt) {
@@ -1074,19 +1098,34 @@ $("bJoin").onclick = async () => {
     if (!r) { reason = "الروم غير موجود"; return; }
     if (r.players?.[me.id]) return r;
     const n = Object.keys(r.players || {}).length;
-    if (n >= r.max) { reason = `الروم ممتلئ (${n}/${r.max}) 🚫`; return; }
-    if (r.status !== "lobby") { reason = "اللعبة بدأت في هذا الروم ⏳"; return; }
+    if (n >= r.max && !(r.roster || []).includes(me.id)) { reason = `الروم ممتلئ (${n}/${r.max}) 🚫`; return; }
+    const back = r.roster && r.roster.includes(me.id);              // كانت معهم وطاح نتها
+    if (r.status !== "lobby" && !back) { reason = "اللعبة بدأت في هذا الروم ⏳"; return; }
     (r.players ||= {})[me.id] = { name: myName(), skin: me.skin, x: SPAWN[0], y: SPAWN[1], t: api.now() };
     return r;
   }); } catch (e) { return homeMsg("❌ ما قدرت أدخل: " + explain(e)); }
   res ? enter(c) : homeMsg(reason || "ما قدرتي تدخلين");
 };
-function enter(c) { code = c; api.onLeave(c, me.id); unwatch && unwatch(); unwatch = api.watch(c, r => { room = r; onRoom(); }); }
+let posMap = {}, unwatchPos = null, myEntry = null;
+function enter(c) {
+  code = c; api.onLeave(c, me.id);
+  try { sessionStorage.setItem("bomb_room", c); } catch {}
+  unwatch && unwatch(); unwatch = api.watch(c, r => { room = r; if (r?.players?.[me.id]) myEntry = r.players[me.id]; onRoom(); });
+  unwatchPos && unwatchPos(); unwatchPos = api.watchPos(c, v => { posMap = v; });
+}
+// لما يرجع النت بعد ما انقطع: نرجّع اللاعبة لروما بدل ما تنطرد
+function onReconnect() {
+  if (!code || !api) return;
+  api.onLeave(code, me.id);
+  if (room && !room.players?.[me.id] && myEntry) api.set(code, "players/" + me.id, myEntry);
+  pushPos(true);
+}
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
 $("bStart").onclick = () => api.update(code, r => {
   r.tools = {}; for (const t of Object.keys(TOOLS)) { const [x, y] = pick(TOOL_SPOTS[t]); r.tools[t] = { x, y, by: "" }; }
   r.diff = difficulty(Object.keys(r.players).length);          // الصعوبة حسب العدد
+  r.roster = Object.keys(r.players);                             // مين بدأ اللعبة (عشان لو طاح نت وحدة ترجع)
   r.wires = Object.keys(COLORS).sort(() => Math.random() - .5).slice(0, r.diff.wires);
   r.correct = Math.floor(Math.random() * r.diff.wires);
   r.code = Array.from({ length: 4 }, () => Math.floor(Math.random() * 10)).join("");
@@ -1106,6 +1145,9 @@ function playersHTML(r) {
 let lastStrikes = 0, lastRound = 0, signKey = "";
 function onRoom() {
   const r = room;
+  if (r && !r.players?.[me.id] && r.status === "playing" && (r.roster || []).includes(me.id) && myEntry) {
+    api.set(code, "players/" + me.id, myEntry); return;            // انقطعت ورجعت: نرجّعها بدون طرد
+  }
   if (!r || !r.players?.[me.id]) { leave(); return; }
   if (r.status === "lobby") {
     show("sLobby"); const n = Object.keys(r.players).length;
@@ -1166,7 +1208,7 @@ function goalsHTML(r) {
     [`🟡 قفوا على ${(r.diff?.plates || 2) >= 3 ? "الـ٣ دوائر" : (r.diff?.plates === 1 ? "الدائرة" : "الدائرتين")} بنفس الوقت (قاعة البداية)`, r.gates.A],
     ["🔢 اجمعوا أرقام اللوحات وافتحوا الباب الأزرق", r.gates.B],
     ["🔦🪛✂️ اجمعوا الأدوات (+📜 الورقة)", toolsDone],
-    ["🔴 اعبروا قاعة الليزر (وحدة على الزر)", passedLaser],
+    ["🔴 الليزر: وحدة توقف على الدائرة الحمرا والباقي يعبرون", passedLaser],
     [`🔑🔑 لفّوا المفتاحين خلال ${(r.diff?.keyWin || 3000) / 1000 > 9 ? "أي وقت" : (r.diff?.keyWin || 3000) / 1000 + " ثواني"}`, r.bombOpen],
     ["✂️ قصّوا السلك الصح", false]
   ];
@@ -1199,12 +1241,13 @@ function blocked(x, y) {
 }
 const near = (x, y, d) => Math.hypot(me.x - x, me.y - y) < d;
 const nPlayers = () => Object.keys(room?.players || {}).length;
+function posOf(id) { return id === me.id ? me : (posMap[id] || room?.players?.[id]); }
 function platePressed(k) {
   const [px, py] = PLATES[k];
-  return Object.entries(room?.players || {}).some(([id, p]) => Math.hypot((id === me.id ? me.x : p.x) - px, (id === me.id ? me.y : p.y) - py) < 30);
+  return Object.keys(room?.players || {}).some(id => { const q = posOf(id); return q && Math.hypot(q.x - px, q.y - py) < 30; });
 }
 function laserOn() {
-  if (nPlayers() <= 1) return Math.floor(api.now() / 2200) % 2 === 0;   // لعب فردي: الليزر يطفي ويشتغل لحاله
+  if ((room?.roster?.length || nPlayers()) <= 1) return Math.floor(api.now() / 2200) % 2 === 0;   // لعب فردي: الليزر يطفي ويشتغل لحاله
   return !(platePressed("l1") || platePressed("l2"));
 }
 
@@ -1252,8 +1295,7 @@ function pushPos(force) {
   if (!force && (now - lastSent < 90 || !changed)) return;
   lastSent = now; sentX = me.x; sentY = me.y; sentYaw = me.yaw; sentPitch = me.pitch;
   const p = room.players[me.id];
-  api.set(code, "players/" + me.id, { name: p.name, skin: p.skin, t: p.t, x: Math.round(me.x), y: Math.round(me.y),
-    yaw: Math.round(me.yaw * 100) / 100, pitch: Math.round(me.pitch * 100) / 100 });
+  api.setPos(code, me.id, { x: Math.round(me.x), y: Math.round(me.y), yaw: Math.round(me.yaw * 100) / 100, pitch: Math.round(me.pitch * 100) / 100 });
 }
 
 /* ===================== 8) الألغاز والتفاعل ===================== */
@@ -1274,7 +1316,7 @@ function tryPickups() {
 function checkPlates(r) {
   if (r.gates.A) return;
   const np = r.diff?.plates || 2, list = np === 1 ? ["a1","a2"] : ["a1","a2","a3"].slice(0, np);
-  const need = np === 1 ? 1 : np, pressed = list.filter(platePressed).length;
+  const need = np === 1 ? 1 : np, pressed = list.filter(platePressed).length;   // العدد ثابت من بداية الجولة (اللعبة تعاونية)
   if (pressed >= need) once("gateA", () => api.update(code, x => { if (!x || x.gates.A) return; x.gates.A = true; x.last = "🟡 انفتحت البوابة الذهبية! دوروا على أرقام الكود 🔢"; return x; }));
 }
 // الليزر
@@ -1314,7 +1356,7 @@ function turnKey(k) {
     if (!x || x.status !== "playing" || x.bombOpen) return;
     const now = api.now(), p = x.players[me.id]; x.keys[k] = now;
     const other = x.keys[k === "k1" ? "k2" : "k1"];
-    if (Object.keys(x.players).length <= 1 || now - other < (x.diff?.keyWin || 3000)) { x.bombOpen = true; x.last = "🔑🔑 انفتح غطاء القنبلة! قصّوا السلك الصح"; }
+    if ((x.roster?.length || Object.keys(x.players).length) <= 1 || now - other < (x.diff?.keyWin || 3000)) { x.bombOpen = true; x.last = "🔑🔑 انفتح غطاء القنبلة! قصّوا السلك الصح"; }
     else x.last = `🔑 ${p.skin} ${p.name} لفّت مفتاح! المفتاح الثاني خلال ${(x.diff?.keyWin || 3000) / 1000} ثواني ⏱️`;
     return x;
   });
@@ -1571,6 +1613,7 @@ function render3D(r, now) {
   for (const [k, g] of Object.entries(gateObjs)) { const target = r.gates[k] ? WALL_H * 1.02 + WALL_H / 2 : WALL_H / 2; g.position.y += (target - g.position.y) * Math.min(1, dt3 * 3); }
   for (const [k, o] of Object.entries(plateObjs)) {
     o.g.visible = k !== "a3" || (r.diff?.plates || 2) >= 3;
+    o.lab.visible = k.startsWith("a") ? !r.gates.A : true; o.lab.position.y = 1.5 + Math.sin(now / 400) * .06;
     const on = platePressed(k); const active = k.startsWith("a") ? !r.gates.A : true;
     o.top.position.y = on ? .06 : .1; o.top.material.emissiveIntensity = on ? 1.2 : (active ? .25 + Math.sin(now / 300) * .15 : .05); o.L.intensity = on ? 1.5 : 0;
     o.top.material.color.set(active ? (k.startsWith("l") ? "#ff6a3a" : "#ffcc33") : "#555");
@@ -1586,9 +1629,10 @@ function render3D(r, now) {
     if (id === me.id) continue; ids.add(id);
     const a = avatar(id, p);
     const ox = a.x, oy = a.y, k = 1 - Math.pow(.0005, dt3);
-    a.x += (p.x - a.x) * k; a.y += (p.y - a.y) * k;
-    let dyaw = (p.yaw || 0) - a.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
-    a.yaw += dyaw * k; a.pitch += ((p.pitch || 0) - a.pitch) * k;
+    const q = posMap[id] || p;
+    a.x += (q.x - a.x) * k; a.y += (q.y - a.y) * k;
+    let dyaw = (q.yaw || 0) - a.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
+    a.yaw += dyaw * k; a.pitch += ((q.pitch || 0) - a.pitch) * k;
     a.g.position.set(a.x * S, 0, a.y * S); a.g.rotation.y = a.yaw;
     animate(a, Math.hypot(a.x - ox, a.y - oy) * S / Math.max(dt3, .001), dt3);
     setHeld(a, Object.entries(r.tools || {}).filter(([, o]) => o.by === id).map(([t]) => TOOLS[t][0]).join(" "));
@@ -1608,7 +1652,7 @@ function drawMini(r) {
   if (laserOn()) { mg.fillStyle = "#ff2030aa"; mg.fillRect(LASER[0] * k, LASER[1] * k, LASER[2] * k, LASER[3] * k); }
   if (r.tools?.light?.by) { mg.fillStyle = "#ff4d5e"; mg.beginPath(); mg.arc(BOMB.x * k, BOMB.y * k, 5, 0, 7); mg.fill(); }
   mg.font = "15px sans-serif"; mg.textAlign = "center"; mg.textBaseline = "middle";
-  for (const [id, p] of Object.entries(r.players || {})) if (id !== me.id) mg.fillText(p.skin, p.x * k, p.y * k);
+  for (const [id, p] of Object.entries(r.players || {})) if (id !== me.id) { const q = posMap[id] || p; mg.fillText(p.skin, q.x * k, q.y * k); }
   const x = me.x * k, y = me.y * k, a = -me.yaw - Math.PI / 2;
   mg.fillStyle = "#ffcc33"; mg.beginPath();
   mg.moveTo(x + Math.cos(a) * 10, y + Math.sin(a) * 10); mg.lineTo(x + Math.cos(a + 2.5) * 7, y + Math.sin(a + 2.5) * 7); mg.lineTo(x + Math.cos(a - 2.5) * 7, y + Math.sin(a - 2.5) * 7);
@@ -1619,7 +1663,9 @@ function drawMini(r) {
 $("bAgain").onclick = () => api.update(code, r => { r.status = "lobby"; return r; });
 async function leave() {
   if (code) {
-    const c = code; code = null; unwatch && unwatch(); unwatch = null; closePanel(); closeKp();
+    const c = code; code = null; unwatch && unwatch(); unwatch = null; unwatchPos && unwatchPos(); unwatchPos = null; posMap = {}; myEntry = null; closePanel(); closeKp();
+    try { sessionStorage.removeItem("bomb_room"); } catch {}
+    try { api.setPos(c, me.id, null); } catch {}
     await api.update(c, r => {
       if (!r?.players?.[me.id]) return r ?? undefined;
       delete r.players[me.id];
