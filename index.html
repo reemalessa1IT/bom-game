@@ -138,7 +138,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:12px 1
 }
 
 /* إنذار وسينما */
-.stage.danger::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;box-shadow:inset 0 0 140px 40px #ff0010aa;animation:dz .9s infinite}
+/* الإنذار: بدون تأثير على الشاشة (عشان ما يبان كأن الشخصية تتضرر)، الغرفة بس تشتغل إنذاراتها */
 @keyframes dz{50%{opacity:.2}}
 .timer.tdanger{animation:tp .5s infinite;background:#3a0008cc!important;border-color:#ff2a3a!important}
 @keyframes tp{50%{transform:scale(1.12)}}
@@ -165,11 +165,12 @@ button{font:inherit;cursor:pointer;border:none;border-radius:12px;padding:12px 1
 
 /* ===== ملء الشاشة والتكيّف مع كل الأجهزة ===== */
 html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;touch-action:none}
+html,body{position:fixed;inset:0;width:100%}
 body{padding:0;display:block;background:#07080d}
 button,input,select{touch-action:manipulation}
-.wrap{max-width:none;width:100vw;height:100vh;height:100dvh}
+.wrap{max-width:none;position:fixed;inset:0;width:auto;height:auto}
 #sGame{width:100%;height:100%}
-.menu,.stage{width:100%;height:100vh;height:100dvh;border-radius:0;border:none;box-shadow:none}
+.menu,.stage{width:100%;height:100%;border-radius:0;border:none;box-shadow:none}
 .stage:fullscreen{height:100vh}
 #mode{position:absolute;bottom:max(4px,env(safe-area-inset-bottom));left:0;right:0;z-index:7;font-size:11px;opacity:.55;pointer-events:none;margin:0}
 .sound{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left))}
@@ -244,6 +245,7 @@ button,input,select{touch-action:manipulation}
 .net.ok{background:#0d2a17;color:#7dffb0;border:1px solid #2aff7a44}
 .net.warn{background:#2a2410;color:#ffe08a;border:1px solid #ffcc3344}
 .net.bad{background:#2a0d12;color:#ffb3b3;border:1px solid #ff4d5e55}
+.resume{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:#07080dee;font-size:20px;font-weight:800;color:#ffcc33}
 /* تنبيه قلب الجهاز */
 .rotate{display:none;position:absolute;inset:0;z-index:40;background:#07080df2;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
 .rotate .ph{font-size:64px;animation:rot 1.8s ease-in-out infinite}
@@ -258,12 +260,13 @@ button,input,select{touch-action:manipulation}
     <div class="vignette"></div>
     <button class="sound" id="bSound" title="الصوت">🔊</button>
     <button class="mfs" id="bMfs" title="ملء الشاشة">⛶</button>
+    <div id="resume" class="resume hide"></div>
 
     <!-- شاشة العنوان -->
     <div id="scTitle" class="sc">
       <div class="alert">⚠️ تحذير: جسم مشبوه داخل المبنى</div>
       <h1 class="title" data-t="فكّ القنبلة">فكّ القنبلة</h1>
-      <div class="tag">تعاونوا… قبل لا يفوت الوقت</div>
+      <div class="tag">التعاون هو الحل… قبل لا يفوت الوقت</div>
       <div class="digits" id="tDigits">08:00</div>
       <button class="go" id="bGo">▶ ابدأ اللعب</button>
       <div class="hint">لعبة جماعية 3D · من ٢ إلى ٦ لاعبين</div>
@@ -282,14 +285,14 @@ button,input,select{touch-action:manipulation}
     <!-- اختيار الشخصية والروم -->
     <div id="scSetup" class="sc setup hide">
       <div class="side">
-        <div class="stitle">🧑‍🚀 جهّزي فريقك</div>
+        <div class="stitle">🧑‍🚀 تجهيز الفريق</div>
         <label>اسمك</label>
-        <input id="name" maxlength="12" placeholder="مثلاً: ريما">
+        <input id="name" maxlength="12" placeholder="الاسم هنا">
         <label>شخصيتك</label>
         <div class="skins" id="skins"></div>
         <div class="tabs"><button class="tab on" id="tCreate">➕ إنشاء روم</button><button class="tab" id="tJoin">🔑 دخول بكود</button></div>
         <div id="pCreate">
-          <label>كم لاعبة بالروم؟</label>
+          <label>عدد اللاعبين بالروم؟</label>
           <div class="chips" id="chips"></div>
           <select id="max" class="hide"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
           <button class="btn" id="bCreate">🚀 إنشاء الروم</button>
@@ -313,13 +316,13 @@ button,input,select{touch-action:manipulation}
     <!-- الانتظار -->
     <div id="sLobby" class="sc lobby hide">
       <div class="lbox">
-        <div class="mut">كود الروم، أرسليه لصاحباتك 👇</div>
+        <div class="mut">كود الروم، يُرسل لباقي الفريق 👇</div>
         <div class="code" id="lCode"></div>
         <div class="mut" id="lCount"></div>
         <div class="ldiff" id="lDiff"></div>
         <div class="players" id="lPlayers"></div>
         <button class="btn pulse" id="bStart">🚀 ابدأ المهمة</button>
-        <div class="mut" id="lWait">⏳ بانتظار صاحبة الروم تبدأ...</div>
+        <div class="mut" id="lWait">⏳ بانتظار بدء اللعبة...</div>
         <button class="btn2" id="bLeave">خروج</button>
       </div>
     </div>
@@ -329,14 +332,14 @@ button,input,select{touch-action:manipulation}
       <div class="lbox" style="max-width:560px;text-align:right">
         <b style="font-size:20px">📖 طريقة اللعب</b>
         <ol class="how">
-          <li>🟡 <b>البوابة الذهبية:</b> دائرتين بعيدات عن بعض، قفوا عليهم <b>بنفس الوقت</b>.</li>
-          <li>🔢 <b>الباب الأزرق:</b> أرقام الكود على لوحات بالمبنى، وكل لوحة <b>تشوفها لاعبة وحدة بس</b>.</li>
+          <li>🟡 <b>البوابة الذهبية:</b> دائرتين بعيدات عن بعض، والمطلوب الوقوف عليهم <b>بنفس الوقت</b>.</li>
+          <li>🔢 <b>الباب الأزرق:</b> أرقام الكود على لوحات بالمبنى، وكل لوحة <b>تظهر لشخص واحد بس</b>.</li>
           <li>🔦🪛✂️📜 <b>الأدوات:</b> متوزعة بالغرف، وبعضها بالظلام وفي متاهة.</li>
-          <li>🔴 <b>الليزر:</b> وحدة توقف على الزر والباقي يعبرون.</li>
+          <li>🔴 <b>الليزر:</b> الوقوف على الزر يطفّي الليزر، وبعدها يعبر الباقي.</li>
           <li>🔑🔑 <b>المفتاحين:</b> لازم يتلفّون خلال ٣ ثواني من بعض.</li>
-          <li>✂️ <b>السلك:</b> اللي معها 📜 تعرف اللون الصح!</li>
+          <li>✂️ <b>السلك:</b> اللون الصح مكتوب في 📜 الورقة!</li>
         </ol>
-        <div class="mut">⌨️ WASD للمشي · الماوس للالتفات · E للتفاعل · 📱 أزرار + اسحبي على الشاشة</div>
+        <div class="mut">⌨️ WASD للمشي · الماوس للالتفات · E للتفاعل · 📱 أزرار + السحب على الشاشة</div>
         <button class="btn" id="bHowClose">فهمت 👍</button>
       </div>
     </div>
@@ -357,7 +360,7 @@ button,input,select{touch-action:manipulation}
       <button class="fs" id="bFs" title="ملء الشاشة">⛶</button>
       <canvas id="mini" width="380" height="296"></canvas>
       <div class="prompt hide" id="prompt"></div>
-      <div class="rotate" id="rotate"><div class="ph">📱</div><b style="font-size:20px">قلّبي جهازك بالعرض 🔄</b><div class="mut">عشان تشوفين اللعبة كاملة وأكبر</div><button class="btn2" id="bPortrait" style="width:auto">كمّلي بالطول</button></div>
+      <div class="rotate" id="rotate"><div class="ph">📱</div><b style="font-size:20px">يُفضّل قلب الجهاز بالعرض 🔄</b><div class="mut">عشان تظهر اللعبة كاملة وأكبر</div><button class="btn2" id="bPortrait" style="width:auto">المتابعة بالطول</button></div>
       <div id="banner" class="banner"></div>
       <div class="lb top"></div><div class="lb bot"></div>
       <div id="flash" class="flash"></div>
@@ -369,20 +372,20 @@ button,input,select{touch-action:manipulation}
           <button data-d="l">⬅️</button><span></span><button data-d="r">➡️</button>
           <span></span><button data-d="b">⬇️</button><span></span>
         </div>
-        <div class="looktip">👆 اسحبي للالتفات</div>
+        <div class="looktip">👆 السحب للالتفات</div>
         <button class="act" id="bAct">تفاعل ✋</button>
       </div>
-      <div class="start hide" id="clickStart">🖱️ اضغطي هنا عشان تتحكمين بالماوس<br><span style="font-size:13px;font-weight:400">(Esc يطلّع الماوس)</span></div>
+      <div class="start hide" id="clickStart">🖱️ الضغط هنا للتحكم بالماوس<br><span style="font-size:13px;font-weight:400">(Esc يطلّع الماوس)</span></div>
       <div class="overlay hide" id="ov">
         <div class="panel">
-          <div style="text-align:center;font-weight:800;font-size:18px">💣 اختاري السلك وقصّيه</div>
+          <div style="text-align:center;font-weight:800;font-size:18px">💣 اختيار السلك وقصّه</div>
           <div id="wires"></div>
           <button class="btn2" id="bClose">إغلاق</button>
         </div>
       </div>
       <div class="overlay hide" id="kp">
         <div class="panel" id="kpPanel">
-          <div style="text-align:center;font-weight:800;font-size:18px">🔢 أدخلي الكود (4 أرقام)</div>
+          <div style="text-align:center;font-weight:800;font-size:18px">🔢 إدخال الكود (4 أرقام)</div>
           <div class="kdisp" id="kdisp">____</div>
           <div class="kgrid" id="kgrid"></div>
           <button class="btn2" id="kClose">إغلاق</button>
@@ -398,7 +401,7 @@ button,input,select{touch-action:manipulation}
       <div class="mut" id="eSub"></div>
       <div class="stats" id="eStats"></div>
       <button class="btn" id="bAgain">🔁 جولة ثانية</button>
-      <div class="mut" id="eWait">بانتظار صاحبة الروم تبدأ جولة ثانية...</div>
+      <div class="mut" id="eWait">⏳ بانتظار بدء جولة ثانية...</div>
       <button class="btn2" id="bExit">رجوع للرئيسية</button>
     </div>
   </div>
@@ -468,7 +471,7 @@ if (!api) {
     send({ sync: true });
   }
   api = {
-    name: "تجريبي 🧪 (افتحي اللعبة في أكثر من تبويب بنفس المتصفح)",
+    name: "تجريبي 🧪 (يشتغل بين تبويبات نفس المتصفح)",
     now: () => Date.now(),
     async get(c) { return read("room_" + c); },
     async update(c, fn) { const k = "room_" + c; const v = fn(structuredClone(read(k))); if (v === undefined) return null;
@@ -485,10 +488,10 @@ function netStatus() {
   const el = document.getElementById("mode"), ns = document.getElementById("netStatus");
   let txt, cls;
   if (api.name.startsWith("Firebase")) {
-    if (fbConnected === false) { txt = "🟠 Firebase: جاري الاتصال… (تأكدي من النت)"; cls = "warn"; }
+    if (fbConnected === false) { txt = "🟠 Firebase: جاري الاتصال… (يُرجى التأكد من النت)"; cls = "warn"; }
     else if (fbConnected) { txt = "🟢 متصلة بـ Firebase · تقدرون تلعبون من أجهزة مختلفة"; cls = "ok"; }
     else { txt = "🟡 Firebase: جاري الاتصال…"; cls = "warn"; }
-  } else if (firebaseConfig.databaseURL) { txt = "🔴 ما قدرت أتصل بـ Firebase، شغالة تجريبي (نفس المتصفح بس)"; cls = "bad"; }
+  } else if (firebaseConfig.databaseURL) { txt = "🔴 تعذّر الاتصال بـ Firebase، الوضع تجريبي (نفس المتصفح بس)"; cls = "bad"; }
   else { txt = "🧪 وضع تجريبي: يشتغل بين تبويبات نفس المتصفح بس"; cls = "bad"; }
   el.textContent = "وضع الاتصال: " + txt;
   if (ns) { ns.textContent = txt; ns.className = "net " + cls; }
@@ -499,11 +502,11 @@ let netErrShown = false;
 function netError(e) {
   console.warn(e);
   if (!netErrShown && /permission|denied/i.test(String(e?.message || e))) { netErrShown = true;
-    try { banner("⚠️ Firebase رفض الكتابة: حدّثي القواعد (Rules)"); } catch {} }
+    try { banner("⚠️ Firebase رفض الكتابة: يلزم تحديث القواعد (Rules)"); } catch {} }
 }
 function explain(e) {
   const m = String(e?.message || e);
-  if (/permission|denied/i.test(m)) return "Firebase رفض الطلب، عدّلي القواعد (Rules) وخليها تسمح بـ rooms";
+  if (/permission|denied/i.test(m)) return "Firebase رفض الطلب، يلزم تعديل القواعد (Rules)";
   return m.slice(0, 120);
 }
 /* ===================== 3) خريطة المبنى ===================== */
@@ -560,6 +563,7 @@ const $ = id => document.getElementById(id);
 let myId = null;
 // رقم اللاعبة يتحفظ بالجهاز، فلو سكّرت الصفحة ورجعت بنفس الكود ترجع لنفس مكانها بالفريق
 // (بالوضع التجريبي نحفظه لكل تبويب لحاله عشان التبويبات تكون لاعبين مختلفين)
+const STORE = (() => { try { return api.name.startsWith("Firebase") ? localStorage : sessionStorage; } catch { return null; } })();
 try { const st = api.name.startsWith("Firebase") ? localStorage : sessionStorage;
   myId = st.getItem("bomb_id"); if (!myId) { myId = Math.random().toString(36).slice(2, 9); st.setItem("bomb_id", myId); } } catch {}
 const me = { id: myId || Math.random().toString(36).slice(2, 9), skin: SKINS[0], x: SPAWN[0], y: SPAWN[1], yaw: -Math.PI / 2, pitch: 0 };
@@ -576,15 +580,15 @@ function show(s) {
   if (s === "sLobby" && menuScreen !== "sLobby") menuShow("sLobby");
   if (s === "sHome" && menuScreen === "sLobby") menuShow("scSetup");
 }
-const myName = () => ($("name").value.trim() || "لاعبة");
+const myName = () => ($("name").value.trim() || "ضيف");
 const homeMsg = t => $("homeMsg").textContent = t;
 const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /* ===================== 4) المشهد ثلاثي الأبعاد ===================== */
 const canvas = $("gl");
 const TOUCH = matchMedia("(pointer:coarse)").matches;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !TOUCH, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(TOUCH ? 1.25 : 2, devicePixelRatio));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(TOUCH ? 1.5 : 2, devicePixelRatio));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#05060a");
 scene.fog = new THREE.Fog("#05060a", 8, 30);
@@ -595,7 +599,7 @@ scene.add(new THREE.AmbientLight("#ffffff", 0.07));
 scene.add(new THREE.HemisphereLight("#9fb4ff", "#201810", 0.08));
 
 // بأجهزة اللمس نستخدم خامات أخف عشان اللعبة ما تعلّق
-const mat = (c, o = {}) => TOUCH ? new THREE.MeshLambertMaterial({ color: c, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1, transparent: !!o.transparent }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .85, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
+const mat = (c, o = {}) => TOUCH ? new THREE.MeshPhongMaterial({ color: c, shininess: o.m ? 60 : 8, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1, transparent: !!o.transparent }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .85, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
 const at = (x, y) => [x * S, y * S];
 
 function textSprite(text, size = 96, color = "#fff", cw = 256, chh = 256, stroke = false) {
@@ -684,7 +688,7 @@ for (const [k, [x, y]] of Object.entries(PLATES)) {
   const base = new THREE.Mesh(new THREE.CylinderGeometry(.8, .85, .08, 28), mat("#333", { m: .5 })); base.position.y = .04; g.add(base);
   const top = new THREE.Mesh(new THREE.CylinderGeometry(.62, .62, .06, 28), mat("#ffcc33", { e: "#ffcc33", ei: .25 })); top.position.y = .1; g.add(top);
   const L = { intensity: 0 };   // بدون ضوء إضافي (أخف على الجوال)
-  const lab = textSprite(k.startsWith("a") ? "🟡 قفي هنا" : "🔴 قفي هنا = يطفي الليزر", 46, "#fff", 512, 96, true);
+  const lab = textSprite(k.startsWith("a") ? "🟡 الوقوف هنا" : "🔴 الوقوف هنا = يطفي الليزر", 46, "#fff", 512, 96, true);
   lab.scale.set(k.startsWith("a") ? 1.4 : 2.2, k.startsWith("a") ? .27 : .42, 1); lab.position.y = 1.5; g.add(lab);
   plateObjs[k] = { g, top, L, lab };
 }
@@ -704,9 +708,9 @@ const laserLight = TOUCH ? new THREE.Object3D() : new THREE.PointLight("#ff2030"
 for (const ex of [LASER[0] + 6, LASER[0] + LASER[2] - 6]) { const e = new THREE.Mesh(new THREE.BoxGeometry(.18, 2, .5), mat("#222", { m: .6 })); e.position.set(ex * S, 1, (LASER[1] + 20) * S); scene.add(e); }
 // لوحة الكيبورد والمفاتيح
 const laserSign = wallPanel(1110, 409, 0, 2.2, .9, 1.9);
-laserSign.material.map = panelTex([["🔴 قاعة الليزر", 54], ["وحدة توقف على الدائرة الحمرا", 40], ["والليزر يطفي، والباقي يعبرون", 40]], "#2a0a0a", "#ffd0d0", 640, 260); laserSign.material.needsUpdate = true;
+laserSign.material.map = panelTex([["🔴 قاعة الليزر", 54], ["الوقوف على الدائرة الحمرا", 40], ["يطفّي الليزر، وبعدها يعبر الباقي", 40]], "#2a0a0a", "#ffd0d0", 640, 260); laserSign.material.needsUpdate = true;
 const kpMesh = wallPanel(KEYPAD.x, KEYPAD.y, KEYPAD.face, .7, .9, 1.4);
-kpMesh.material.map = panelTex([["🔢", 120], ["أدخلي الكود", 54]], "#0b1a2f", "#6bff9a", 300, 380); kpMesh.material.needsUpdate = true;
+kpMesh.material.map = panelTex([["🔢", 120], ["إدخال الكود", 54]], "#0b1a2f", "#6bff9a", 300, 380); kpMesh.material.needsUpdate = true;
 const keyObjs = {};
 for (const [k, [x, y, f]] of Object.entries(KEYS)) { const m = wallPanel(x, y, f, .7, .7, 1.3); keyObjs[k] = m; }
 // لوحات الأرقام (كل لاعبة تشوف رسم مختلف)
@@ -723,7 +727,7 @@ for (const [t, [e]] of Object.entries(TOOLS)) {
 
 /* ===================== شخصيات ثلاثية الأبعاد ===================== */
 // كل شخصية مبنية من أشكال بسيطة. الوجه يطالع لقدّام (-Z)، والحجم حقيقي تقريبًا بالمتر
-const M = (c, o = {}) => TOUCH ? new THREE.MeshLambertMaterial({ color: c, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .6, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
+const M = (c, o = {}) => TOUCH ? new THREE.MeshPhongMaterial({ color: c, shininess: o.m ? 60 : 12, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 }) : new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? .6, metalness: o.m ?? 0, emissive: o.e || "#000", emissiveIntensity: o.ei ?? 1 });
 const BLACK = M("#111"), WHITE = M("#fafafa");
 function part(geo, m, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, parent) {
   const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); parent && parent.add(o); return o;
@@ -882,6 +886,11 @@ function resize() {
   if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener("resize", resize);
+// آيفون: بعد ما ينقفل الكيبورد، Safari يخلي الصفحة منزّلة لتحت، فنرجّعها
+const unscroll = () => { if (scrollX || scrollY) scrollTo(0, 0); if (document.scrollingElement) document.scrollingElement.scrollTop = 0; };
+document.addEventListener("focusout", () => setTimeout(() => { unscroll(); resize(); typeof mResize === "function" && mResize(); }, 120));
+addEventListener("scroll", unscroll, { passive: true });
+window.visualViewport?.addEventListener("scroll", unscroll);
 addEventListener("orientationchange", () => setTimeout(() => { resize(); typeof mResize === "function" && mResize(); }, 300));
 window.visualViewport?.addEventListener("resize", () => resize());
 try { new ResizeObserver(() => resize()).observe($("stage")); } catch {}
@@ -1027,7 +1036,7 @@ const STORY = [
   ["المبنى مقفل بأبواب أمنية،"],
   ["وما تنفتح إلا إذا اشتغل الفريق مع بعض."],
   ["الأدوات متفرقة بالغرف… وبعضها في الظلام."],
-  ["كل وحدة فيكم تشوف أدلة ما يشوفها غيرها."],
+  ["الأدلة موزّعة، وكل دليل يظهر لشخص واحد بس."],
   ["⏱️ عندكم 8 دقائق.", "red"],
   ["بالتوفيق يا فريق. 🫡"]
 ];
@@ -1081,17 +1090,17 @@ $("bCreate").onclick = async () => {
       if (r && r.players && Object.keys(r.players).length) return;      // الرقم محجوز
       return { host: me.id, max: +$("max").value, status: "lobby",
         players: { [me.id]: { name: myName(), skin: me.skin, x: SPAWN[0], y: SPAWN[1], t: api.now() } } };
-    }); } catch (e) { homeMsg("❌ ما قدرت أنشئ الروم: " + explain(e)); return; }
+    }); } catch (e) { homeMsg("❌ تعذّر إنشاء الروم: " + explain(e)); return; }
     if (ok) { enter(c); return; }
   }
-  homeMsg("ما قدرنا ننشئ روم، جربي مرة ثانية");
+  homeMsg("تعذّر إنشاء الروم، يُرجى المحاولة مرة ثانية");
 };
-$("bJoin").onclick = async () => {
-  const c = $("codeIn").value.trim();
-  if (!/^\d{4}$/.test(c)) return homeMsg("اكتبي كود من 4 أرقام");
+$("bJoin").onclick = () => joinRoom($("codeIn").value.trim());
+async function joinRoom(c) {
+  if (!/^\d{4}$/.test(c)) { homeMsg("الكود لازم يكون 4 أرقام"); return false; }
   let found;
   try { found = await api.get(c); } catch (e) { return homeMsg("❌ خطأ بالاتصال: " + explain(e)); }
-  if (!found) return homeMsg(api.name.startsWith("Firebase") ? "ما فيه روم بهالكود ❌ تأكدي من الرقم" : "ما فيه روم بهالكود ❌ (الوضع التجريبي ما يشوف أجهزة ثانية)");
+  if (!found) return homeMsg(api.name.startsWith("Firebase") ? "ما فيه روم بهالكود ❌ يُرجى التأكد من الرقم" : "ما فيه روم بهالكود ❌ (الوضع التجريبي ما يشوف أجهزة ثانية)");
   let reason = "";
   let res;
   try { res = await api.update(c, r => {
@@ -1103,16 +1112,30 @@ $("bJoin").onclick = async () => {
     if (r.status !== "lobby" && !back) { reason = "اللعبة بدأت في هذا الروم ⏳"; return; }
     (r.players ||= {})[me.id] = { name: myName(), skin: me.skin, x: SPAWN[0], y: SPAWN[1], t: api.now() };
     return r;
-  }); } catch (e) { return homeMsg("❌ ما قدرت أدخل: " + explain(e)); }
-  res ? enter(c) : homeMsg(reason || "ما قدرتي تدخلين");
-};
+  }); } catch (e) { homeMsg("❌ تعذّر الدخول: " + explain(e)); return false; }
+  if (res) { enter(c); return true; }
+  homeMsg(reason || "تعذّر الدخول"); return false;
+}
 let posMap = {}, unwatchPos = null, myEntry = null;
 function enter(c) {
   code = c; api.onLeave(c, me.id);
-  try { sessionStorage.setItem("bomb_room", c); } catch {}
+  try { STORE.setItem("bomb_room", c); STORE.setItem("bomb_me", JSON.stringify({ name: myName(), skin: me.skin })); } catch {}
   unwatch && unwatch(); unwatch = api.watch(c, r => { room = r; if (r?.players?.[me.id]) myEntry = r.players[me.id]; onRoom(); });
   unwatchPos && unwatchPos(); unwatchPos = api.watchPos(c, v => { posMap = v; });
 }
+// بعد تحديث الصفحة: نرجع للروم تلقائيًا بدون ما نمر بالقائمة
+(async function autoResume() {
+  let c = null, saved = null;
+  try { c = STORE.getItem("bomb_room"); saved = JSON.parse(STORE.getItem("bomb_me") || "null"); } catch {}
+  if (!c) return;
+  if (saved) { if (saved.name) $("name").value = saved.name; if (SKINS.includes(saved.skin)) setSkin(saved.skin); }
+  $("resume").textContent = `🔄 جاري الرجوع للروم ${c}…`; $("resume").classList.remove("hide");
+  let ok = false;
+  if (!api.name.startsWith("Firebase")) await new Promise(r => setTimeout(r, 500));   // الوضع التجريبي: ننتظر التبويبات الثانية ترسل البيانات
+  try { const r = await api.get(c); if (r) ok = await joinRoom(c); } catch {}
+  $("resume").classList.add("hide");
+  if (!ok) { try { STORE.removeItem("bomb_room"); } catch {} homeMsg(""); }
+})();
 // لما يرجع النت بعد ما انقطع: نرجّع اللاعبة لروما بدل ما تنطرد
 function onReconnect() {
   if (!code || !api) return;
@@ -1132,7 +1155,7 @@ $("bStart").onclick = () => api.update(code, r => {
   const ids = Object.keys(r.players).sort(() => Math.random() - .5);
   r.signs = SIGNS.map((_, i) => ids[i % ids.length]);      // كل لوحة لها صاحبة
   r.gates = { A: false, B: false }; r.keys = { k1: 0, k2: 0 }; r.bombOpen = false;
-  r.cut = {}; r.strikes = 0; r.end = api.now() + r.diff.time * 1000; r.last = "يلا! أول شي افتحوا البوابة الذهبية 🟡";
+  r.cut = {}; r.strikes = 0; r.end = api.now() + r.diff.time * 1000; r.last = "يلا! أول مهمة: فتح البوابة الذهبية 🟡";
   r.status = "playing"; r.round = (r.round || 0) + 1;
   return r;
 });
@@ -1160,6 +1183,7 @@ function onRoom() {
     show("sGame");
     if (r.round !== lastRound) {
       resetCine(); alarmOn = true; setAlarm(false); lastSec = -1; if (TOUCH) lockLandscape();
+      try { document.activeElement?.blur?.(); } catch {} unscroll(); setTimeout(resize, 150);
       lastRound = r.round; lastStrikes = 0; passedLaser = false; picking = {}; closePanel(); closeKp();
       const i = Object.keys(r.players).sort().indexOf(me.id);
       me.x = SPAWN[0] + (i % 3) * 45 - 45; me.y = SPAWN[1] + Math.floor(i / 3) * 45; me.yaw = Math.PI / 2; me.pitch = 0;
@@ -1183,11 +1207,11 @@ function showEnd() {
   {
     const won = r.status === "won";
     $("eIcon").textContent = won ? "🎉" : "💥";
-    $("eTitle").textContent = won ? "فكّيتوا القنبلة!" : "انفجرت القنبلة!";
+    $("eTitle").textContent = won ? "تم فكّ القنبلة!" : "انفجرت القنبلة!";
     $("eSub").textContent = (r.last || "") + ` · السلك الصح كان ${COLORS[r.wires[r.correct]][0]} · الكود كان ${r.code}`;
     const host = r.host === me.id; $("bAgain").classList.toggle("hide", !host); $("eWait").classList.toggle("hide", host);
     const left = Math.max(0, Math.ceil((r.end - api.now()) / 1000));
-    $("eStats").innerHTML = `<div>${r.diff?.name || ""}</div><div>👥 ${Object.keys(r.players).length} لاعبات</div><div>❤️ أخطاء: ${r.strikes}</div>` + (won ? `<div>⏱️ باقي ${fmt(left)}</div>` : "");
+    $("eStats").innerHTML = `<div>${r.diff?.name || ""}</div><div>👥 العدد: ${Object.keys(r.players).length}</div><div>❤️ أخطاء: ${r.strikes}</div>` + (won ? `<div>⏱️ باقي ${fmt(left)}</div>` : "");
   }
 }
 function paintSigns(r) {
@@ -1196,21 +1220,21 @@ function paintSigns(r) {
   SIGNS.forEach(([, , , place], i) => {
     const owner = r.signs?.[i], mine = owner === me.id, p = r.players[owner];
     const lines = mine ? [[`🔢 الخانة رقم ${i + 1} من الكود`, 40], [r.code[i], 150]]
-                       : [[`🔒 الخانة رقم ${i + 1}`, 46], [`ما تشوفينه، تشوفه:`, 38], [p ? `${p.skin} ${p.name}` : "لاعبة طلعت 😢", 52]];
+                       : [[`🔒 الخانة رقم ${i + 1}`, 46], [`هذا الرقم يظهر لـ:`, 38], [p ? `${p.skin} ${p.name}` : "شخص طلع من الروم 😢", 52]];
     const m = signMeshes[i]; m.material.map && m.material.map.dispose();
     m.material.map = panelTex(lines, mine ? "#10301c" : "#1a1420"); m.material.needsUpdate = true;
   });
-  for (const [k, m] of Object.entries(keyObjs)) { m.material.map = panelTex([["🔑", 130], ["لفّي المفتاح", 50]], "#2a1010", "#ffd0d0", 300, 300); m.material.needsUpdate = true; }
+  for (const [k, m] of Object.entries(keyObjs)) { m.material.map = panelTex([["🔑", 130], ["تدوير المفتاح", 50]], "#2a1010", "#ffd0d0", 300, 300); m.material.needsUpdate = true; }
 }
 function goalsHTML(r) {
   const toolsDone = ["light","screw","cut"].every(t => r.tools[t].by);
   const steps = [
-    [`🟡 قفوا على ${(r.diff?.plates || 2) >= 3 ? "الـ٣ دوائر" : (r.diff?.plates === 1 ? "الدائرة" : "الدائرتين")} بنفس الوقت (قاعة البداية)`, r.gates.A],
-    ["🔢 اجمعوا أرقام اللوحات وافتحوا الباب الأزرق", r.gates.B],
-    ["🔦🪛✂️ اجمعوا الأدوات (+📜 الورقة)", toolsDone],
-    ["🔴 الليزر: وحدة توقف على الدائرة الحمرا والباقي يعبرون", passedLaser],
-    [`🔑🔑 لفّوا المفتاحين خلال ${(r.diff?.keyWin || 3000) / 1000 > 9 ? "أي وقت" : (r.diff?.keyWin || 3000) / 1000 + " ثواني"}`, r.bombOpen],
-    ["✂️ قصّوا السلك الصح", false]
+    [`🟡 الوقوف على ${(r.diff?.plates || 2) >= 3 ? "الـ٣ دوائر" : (r.diff?.plates === 1 ? "الدائرة" : "الدائرتين")} بنفس الوقت (قاعة البداية)`, r.gates.A],
+    ["🔢 جمع أرقام اللوحات وفتح الباب الأزرق", r.gates.B],
+    ["🔦🪛✂️ جمع الأدوات (+📜 الورقة)", toolsDone],
+    ["🔴 الليزر: الوقوف على الدائرة الحمرا يطفيه، وبعدها يعبر الباقي", passedLaser],
+    [`🔑🔑 لف المفتاحين خلال ${(r.diff?.keyWin || 3000) / 1000 > 9 ? "أي وقت" : (r.diff?.keyWin || 3000) / 1000 + " ثواني"}`, r.bombOpen],
+    ["✂️ قص السلك الصح", false]
   ];
   let cur = steps.findIndex(s => !s[1]);
   return "<b>🎯 المهام</b>" + steps.map(([t, d], i) => `<div class="${d ? "done" : i === cur ? "now" : ""}">${d ? "✅" : i === cur ? "👉" : "▫️"} ${t}</div>`).join("");
@@ -1222,10 +1246,10 @@ function hud(r) {
     const by = r.tools?.[t]?.by, p = by && r.players[by];
     return `<div class="slot ${by ? "got" : ""}" title="${TOOLS[t][1]}">${e}${p ? `<span class="who">${p.skin}</span>` : ""}</div>`; }).join("");
   if (!flash.t) $("msg").textContent = r.last || "";
-  $("whoami").textContent = `أنتِ: ${r.players[me.id].skin} ${r.players[me.id].name}`;
+  $("whoami").textContent = `شخصيتك: ${r.players[me.id].skin} ${r.players[me.id].name}`;
   const mine = r.tools?.note?.by === me.id;
   $("note").classList.toggle("hide", !mine);
-  if (mine) $("note").innerHTML = `📜 <b>ورقتك السرية:</b> السلك الصحيح هو <b style="color:${COLORS[r.wires[r.correct]][1]}">${COLORS[r.wires[r.correct]][0]}</b>، قوليه لصاحباتك!`;
+  if (mine) $("note").innerHTML = `📜 <b>ورقتك السرية:</b> السلك الصحيح هو <b style="color:${COLORS[r.wires[r.correct]][1]}">${COLORS[r.wires[r.correct]][0]}</b>، ويلزم إبلاغ الفريق!`;
   torch.intensity = r.tools?.light?.by ? 2.4 : 0;
   $("goals").innerHTML = goalsHTML(r);
 }
@@ -1308,7 +1332,7 @@ function tryPickups() {
     picking[t] = true;
     api.update(code, x => {
       if (!x || x.status !== "playing" || x.tools[t].by) return;
-      const p = x.players[me.id]; x.tools[t].by = me.id; x.last = `${p.skin} ${p.name} لقت ${TOOLS[t][0]} ${TOOLS[t][1]}!`; return x;
+      const p = x.players[me.id]; x.tools[t].by = me.id; x.last = `${TOOLS[t][0]} تم العثور على ${TOOLS[t][1]} (${p.skin} ${p.name})!`; return x;
     }).finally(() => picking[t] = false);
   }
 }
@@ -1317,7 +1341,7 @@ function checkPlates(r) {
   if (r.gates.A) return;
   const np = r.diff?.plates || 2, list = np === 1 ? ["a1","a2"] : ["a1","a2","a3"].slice(0, np);
   const need = np === 1 ? 1 : np, pressed = list.filter(platePressed).length;   // العدد ثابت من بداية الجولة (اللعبة تعاونية)
-  if (pressed >= need) once("gateA", () => api.update(code, x => { if (!x || x.gates.A) return; x.gates.A = true; x.last = "🟡 انفتحت البوابة الذهبية! دوروا على أرقام الكود 🔢"; return x; }));
+  if (pressed >= need) once("gateA", () => api.update(code, x => { if (!x || x.gates.A) return; x.gates.A = true; x.last = "🟡 انفتحت البوابة الذهبية! المهمة الجاية: البحث عن أرقام الكود 🔢"; return x; }));
 }
 // الليزر
 let lastZap = 0;
@@ -1328,13 +1352,13 @@ function checkLaser() {
   lastZap = performance.now();
   me.x = 1010; me.y = 580; pushPos(true);
   const st = $("stage"); st.classList.remove("flashred"); void st.offsetWidth; st.classList.add("flashred");
-  api.update(code, x => { if (!x || x.status !== "playing") return; const p = x.players[me.id]; const pen = x.diff?.laserPen || LASER_PEN; x.end -= pen * 1000; x.last = `⚡ ${p.skin} ${p.name} لمست الليزر! −${pen} ثواني`; return x; });
+  api.update(code, x => { if (!x || x.status !== "playing") return; const p = x.players[me.id]; const pen = x.diff?.laserPen || LASER_PEN; x.end -= pen * 1000; x.last = `⚡ لمس الليزر (${p.skin} ${p.name}) −${pen} ثواني`; return x; });
 }
 function promptFor() {
   const r = room; if (!r) return "";
-  if (!r.gates.B && near(KEYPAD.x, KEYPAD.y, 60)) return "🔢 اضغطي E عشان تدخلين الكود";
-  for (const [k, [x, y]] of Object.entries(KEYS)) if (near(x, y, 60)) return r.bombOpen ? "🔑 المفتاح ملفوف ✅" : "🔑 اضغطي E عشان تلفّين المفتاح";
-  if (near(BOMB.x, BOMB.y, BOMB.r + PR + 45)) return r.bombOpen ? "💣 اضغطي E عشان تفتحين القنبلة" : "🔒 القنبلة مقفلة: لفّوا المفتاحين 🔑🔑";
+  if (!r.gates.B && near(KEYPAD.x, KEYPAD.y, 60)) return "🔢 E لإدخال الكود";
+  for (const [k, [x, y]] of Object.entries(KEYS)) if (near(x, y, 60)) return r.bombOpen ? "🔑 المفتاح ملفوف ✅" : "🔑 E لتدوير المفتاح";
+  if (near(BOMB.x, BOMB.y, BOMB.r + PR + 45)) return r.bombOpen ? "💣 E لفتح القنبلة" : "🔒 القنبلة مقفلة: يلزم لف المفتاحين 🔑🔑";
   return "";
 }
 function interact() {
@@ -1342,13 +1366,13 @@ function interact() {
   if (!r.gates.B && near(KEYPAD.x, KEYPAD.y, 60)) { openKp(); return; }
   for (const [k, [x, y]] of Object.entries(KEYS)) if (near(x, y, 60)) { turnKey(k); return; }
   if (near(BOMB.x, BOMB.y, BOMB.r + PR + 45)) {
-    if (!r.bombOpen) { flash("لازم تلفّون المفتاحين 🔑🔑 بنفس الوقت أول!"); return; }
+    if (!r.bombOpen) { flash("لازم لف المفتاحين 🔑🔑 بنفس الوقت أول!"); return; }
     const need = ["light","screw","cut"].filter(t => !r.tools[t].by);
-    if (need.length) { flash("تحتاجون: " + need.map(t => TOOLS[t][0] + " " + TOOLS[t][1]).join(" · ")); return; }
+    if (need.length) { flash("المطلوب: " + need.map(t => TOOLS[t][0] + " " + TOOLS[t][1]).join(" · ")); return; }
     panelOpen = true; try { document.exitPointerLock(); } catch {} Object.keys(keys).forEach(k => keys[k] = false);
     $("ov").classList.remove("hide"); drawWires(r); return;
   }
-  flash("ما فيه شي تتفاعلين معه هنا 🤷");
+  flash("ما فيه شي للتفاعل هنا 🤷");
 }
 function turnKey(k) {
   if (room.bombOpen) return;
@@ -1356,8 +1380,8 @@ function turnKey(k) {
     if (!x || x.status !== "playing" || x.bombOpen) return;
     const now = api.now(), p = x.players[me.id]; x.keys[k] = now;
     const other = x.keys[k === "k1" ? "k2" : "k1"];
-    if ((x.roster?.length || Object.keys(x.players).length) <= 1 || now - other < (x.diff?.keyWin || 3000)) { x.bombOpen = true; x.last = "🔑🔑 انفتح غطاء القنبلة! قصّوا السلك الصح"; }
-    else x.last = `🔑 ${p.skin} ${p.name} لفّت مفتاح! المفتاح الثاني خلال ${(x.diff?.keyWin || 3000) / 1000} ثواني ⏱️`;
+    if ((x.roster?.length || Object.keys(x.players).length) <= 1 || now - other < (x.diff?.keyWin || 3000)) { x.bombOpen = true; x.last = "🔑🔑 انفتح غطاء القنبلة! المهمة الأخيرة: قص السلك الصح"; }
+    else x.last = `🔑 تم لف مفتاح (${p.skin} ${p.name})! المفتاح الثاني خلال ${(x.diff?.keyWin || 3000) / 1000} ثواني ⏱️`;
     return x;
   });
 }
@@ -1371,7 +1395,7 @@ function kpPress(d) {
   if (d === "⌫") kpVal = kpVal.slice(0, -1);
   else if (d === "✔") {
     if (kpVal === room.code) {
-      api.update(code, x => { if (!x || x.gates.B) return; const p = x.players[me.id]; x.gates.B = true; x.last = `🔓 ${p.skin} ${p.name} فتحت الباب الأزرق! ادخلوا المختبر`; return x; });
+      api.update(code, x => { if (!x || x.gates.B) return; const p = x.players[me.id]; x.gates.B = true; x.last = `🔓 انفتح الباب الأزرق (${p.skin} ${p.name})! المختبر صار مفتوح`; return x; });
       closeKp(); if (!matchMedia("(pointer:coarse)").matches) $("clickStart").classList.remove("hide"); return;
     }
     const pn = $("kpPanel"); pn.classList.remove("shake"); void pn.offsetWidth; pn.classList.add("shake"); kpVal = ""; flash("❌ الكود غلط");
@@ -1390,9 +1414,9 @@ function cutWire(i) {
   api.update(code, r => {
     if (!r || r.status !== "playing" || r.cut?.[i]) return;
     const p = r.players[me.id]; (r.cut ||= {})[i] = p.skin;
-    if (i === r.correct) { r.status = "won"; r.last = `${p.skin} ${p.name} قصّت السلك الصح!`; }
-    else { r.strikes++; r.end -= PENALTY * 1000; r.last = `${p.skin} ${p.name} قصّت سلك غلط! −${PENALTY} ثانية`;
-      if (r.strikes >= MAX_STRIKES) { r.status = "lost"; r.last = `${p.skin} ${p.name} فجّرت القنبلة 💥`; } }
+    if (i === r.correct) { r.status = "won"; r.last = `✂️ تم قص السلك الصح (${p.skin} ${p.name})!`; }
+    else { r.strikes++; r.end -= PENALTY * 1000; r.last = `❌ تم قص سلك غلط (${p.skin} ${p.name}) −${PENALTY} ثانية`;
+      if (r.strikes >= MAX_STRIKES) { r.status = "lost"; r.last = `💥 انفجرت القنبلة بسلك غلط (${p.skin} ${p.name})`; } }
     return r;
   });
 }
@@ -1426,7 +1450,7 @@ function stopSiren() { if (!siren) return; try { siren.g.gain.exponentialRampToV
 function setAlarm(on) {
   if (on === alarmOn) return; alarmOn = on;
   $("stage").classList.toggle("danger", on); $("timer").classList.toggle("tdanger", on);
-  if (on) { startSiren(); banner("⚠️ باقي دقيقتين! ⚠️"); } else stopSiren();
+  if (on) { startSiren(); banner("🚨 باقي دقيقة! 🚨"); } else stopSiren();
 }
 function banner(t) { const b = $("banner"); b.textContent = t; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show"); }
 function alarmLights(now) {
@@ -1586,7 +1610,7 @@ function loop(now) {
     if (left !== lastSec) { lastSec = left; $("timer").textContent = fmt(left); paintBombTimer(left);
       if (left <= 10 && left > 0) { sfx(1500, .08, "square", .07); setTimeout(() => sfx(1500, .08, "square", .05), 250); }
       else if (alarmOn) sfx(1100, .05, "square", .03); }
-    setAlarm(left <= 120 && left > 0);
+    setAlarm(left <= 60 && left > 0);      // الإنذار آخر دقيقة
     if (left <= 0 && !ending) { ending = true;
       api.update(code, x => { if (x?.status !== "playing") return; x.status = "lost"; x.last = "خلص الوقت ⏰💥"; return x; }).finally(() => ending = false); }
     render3D(r, now); drawMini(r);
@@ -1664,7 +1688,7 @@ $("bAgain").onclick = () => api.update(code, r => { r.status = "lobby"; return r
 async function leave() {
   if (code) {
     const c = code; code = null; unwatch && unwatch(); unwatch = null; unwatchPos && unwatchPos(); unwatchPos = null; posMap = {}; myEntry = null; closePanel(); closeKp();
-    try { sessionStorage.removeItem("bomb_room"); } catch {}
+    try { STORE.removeItem("bomb_room"); } catch {}
     try { api.setPos(c, me.id, null); } catch {}
     await api.update(c, r => {
       if (!r?.players?.[me.id]) return r ?? undefined;
